@@ -33,4 +33,10 @@ public class ErrorHandler {
     public Map<String, String> handleConflict(ConflictException exception) {
         return Map.of("error", exception.getMessage());
     }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> handleAccessDenied(AccessDeniedException exception) {
+        return Map.of("error", exception.getMessage());
+    }
 }

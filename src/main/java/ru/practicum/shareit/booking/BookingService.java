@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.dto.BookingCreateDto;
 import ru.practicum.shareit.booking.dto.BookingDto;
+import ru.practicum.shareit.exception.AccessDeniedException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.ItemService;
@@ -55,7 +56,7 @@ public class BookingService {
 
         Booking booking = getBooking(bookingId);
         if (!booking.getItem().getOwner().getId().equals(ownerId)) {
-            throw new NotFoundException("Booking not found for owner");
+            throw new AccessDeniedException("Only item owner can approve booking");
         }
         if (booking.getStatus() != BookingStatus.WAITING) {
             throw new ValidationException("Booking has already been approved or rejected");
