@@ -49,7 +49,6 @@ public class BookingService {
 
     @Transactional
     public BookingDto approve(Long ownerId, Long bookingId, Boolean approved) {
-        userService.getUser(ownerId);
         if (approved == null) {
             throw new ValidationException("Approval value is required");
         }
