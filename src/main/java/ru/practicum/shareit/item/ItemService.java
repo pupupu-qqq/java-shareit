@@ -1,8 +1,8 @@
 package ru.practicum.shareit.item;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
@@ -46,7 +46,7 @@ public class ItemService {
         userService.getUser(ownerId);
         Item item = getItem(itemId);
         if (!item.getOwner().getId().equals(ownerId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found for owner");
+            throw new NotFoundException("Item not found for owner");
         }
 
         if (itemDto.getName() != null) {
@@ -94,7 +94,7 @@ public class ItemService {
     private Item getItem(Long itemId) {
         Item item = items.get(itemId);
         if (item == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found");
+            throw new NotFoundException("Item not found");
         }
         return item;
     }
@@ -103,13 +103,13 @@ public class ItemService {
         validateText(itemDto.getName(), "Item name");
         validateText(itemDto.getDescription(), "Item description");
         if (itemDto.getAvailable() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item availability is required");
+            throw new ValidationException("Item availability is required");
         }
     }
 
     private void validateText(String value, String fieldName) {
         if (value == null || value.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required");
+            throw new ValidationException(fieldName + " is required");
         }
     }
 

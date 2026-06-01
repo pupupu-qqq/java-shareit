@@ -1,8 +1,9 @@
 package ru.practicum.shareit.user;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import ru.practicum.shareit.exception.ConflictException;
+import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.mapper.UserMapper;
 
@@ -57,14 +58,14 @@ public class UserService {
     public User getUser(Long userId) {
         User user = users.get(userId);
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+            throw new NotFoundException("User not found");
         }
         return user;
     }
 
     private void validateEmail(String email) {
         if (email == null || email.isBlank() || !email.contains("@")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email");
+            throw new ValidationException("Invalid email");
         }
     }
 
@@ -73,7 +74,7 @@ public class UserService {
                 .anyMatch(user -> user.getEmail().equals(email) && !user.getId().equals(currentUserId));
 
         if (emailExists) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+            throw new ConflictException("Email already exists");
         }
     }
 }
