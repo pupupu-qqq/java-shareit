@@ -17,6 +17,8 @@ import ru.practicum.shareit.user.UserService;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +68,7 @@ public class BookingService {
     }
 
     public BookingDto getById(Long userId, Long bookingId) {
-        userService.getUser(userId);
+        userService.checkUserExists(userId);
         Booking booking = getBooking(bookingId);
         boolean isBooker = booking.getBooker().getId().equals(userId);
         boolean isOwner = booking.getItem().getOwner().getId().equals(userId);
@@ -77,47 +79,76 @@ public class BookingService {
         return BookingMapper.toBookingDto(booking);
     }
 
-    public Collection<BookingDto> getByBooker(Long bookerId, String state) {
-        userService.getUser(bookerId);
-        BookingState bookingState = BookingState.from(state);
+    public Collection<BookingDto> getByBooker(Long bookerId, BookingState state) {
+        userService.checkUserExists(bookerId);
         LocalDateTime now = LocalDateTime.now();
+        Map<BookingState, Supplier<List<Booking>>> handlers = Map.of(
+                BookingState.ALL, () -> bookingRepository.findByBooker_Id(bookerId, START_DESC),
+                BookingState.CURRENT, () -> bookingRepository.findByBooker_IdAndStartBeforeAndEndAfter(
+                        bookerId,
+                        now,
+                        now,
+                        START_DESC
+                ),
+                BookingState.PAST, () -> bookingRepository.findByBooker_IdAndEndBefore(bookerId, now, START_DESC),
+                BookingState.FUTURE, () -> bookingRepository.findByBooker_IdAndStartAfter(bookerId, now, START_DESC),
+                BookingState.WAITING, () -> bookingRepository.findByBooker_IdAndStatus(
+                        bookerId,
+                        BookingStatus.WAITING,
+                        START_DESC
+                ),
+                BookingState.REJECTED, () -> bookingRepository.findByBooker_IdAndStatus(
+                        bookerId,
+                        BookingStatus.REJECTED,
+                        START_DESC
+                )
+        );
 
-        List<Booking> bookings = switch (bookingState) {
-            case ALL -> bookingRepository.findByBooker_Id(bookerId, START_DESC);
-            case CURRENT -> bookingRepository.findByBooker_IdAndStartBeforeAndEndAfter(bookerId, now, now, START_DESC);
-            case PAST -> bookingRepository.findByBooker_IdAndEndBefore(bookerId, now, START_DESC);
-            case FUTURE -> bookingRepository.findByBooker_IdAndStartAfter(bookerId, now, START_DESC);
-            case WAITING -> bookingRepository.findByBooker_IdAndStatus(bookerId, BookingStatus.WAITING, START_DESC);
-            case REJECTED -> bookingRepository.findByBooker_IdAndStatus(bookerId, BookingStatus.REJECTED, START_DESC);
-        };
-
-        return bookings.stream()
-                .map(BookingMapper::toBookingDto)
-                .toList();
+        return toBookingDtos(fetchByState(state, handlers));
     }
 
-    public Collection<BookingDto> getByOwner(Long ownerId, String state) {
-        userService.getUser(ownerId);
-        BookingState bookingState = BookingState.from(state);
+    public Collection<BookingDto> getByOwner(Long ownerId, BookingState state) {
+        userService.checkUserExists(ownerId);
         LocalDateTime now = LocalDateTime.now();
+        Map<BookingState, Supplier<List<Booking>>> handlers = Map.of(
+                BookingState.ALL, () -> bookingRepository.findByItem_Owner_Id(ownerId, START_DESC),
+                BookingState.CURRENT, () -> bookingRepository.findByItem_Owner_IdAndStartBeforeAndEndAfter(
+                        ownerId,
+                        now,
+                        now,
+                        START_DESC
+                ),
+                BookingState.PAST, () -> bookingRepository.findByItem_Owner_IdAndEndBefore(ownerId, now, START_DESC),
+                BookingState.FUTURE, () -> bookingRepository.findByItem_Owner_IdAndStartAfter(ownerId, now, START_DESC),
+                BookingState.WAITING, () -> bookingRepository.findByItem_Owner_IdAndStatus(
+                        ownerId,
+                        BookingStatus.WAITING,
+                        START_DESC
+                ),
+                BookingState.REJECTED, () -> bookingRepository.findByItem_Owner_IdAndStatus(
+                        ownerId,
+                        BookingStatus.REJECTED,
+                        START_DESC
+                )
+        );
 
-        List<Booking> bookings = switch (bookingState) {
-            case ALL -> bookingRepository.findByItem_Owner_Id(ownerId, START_DESC);
-            case CURRENT -> bookingRepository.findByItem_Owner_IdAndStartBeforeAndEndAfter(ownerId, now, now, START_DESC);
-            case PAST -> bookingRepository.findByItem_Owner_IdAndEndBefore(ownerId, now, START_DESC);
-            case FUTURE -> bookingRepository.findByItem_Owner_IdAndStartAfter(ownerId, now, START_DESC);
-            case WAITING -> bookingRepository.findByItem_Owner_IdAndStatus(ownerId, BookingStatus.WAITING, START_DESC);
-            case REJECTED -> bookingRepository.findByItem_Owner_IdAndStatus(ownerId, BookingStatus.REJECTED, START_DESC);
-        };
-
-        return bookings.stream()
-                .map(BookingMapper::toBookingDto)
-                .toList();
+        return toBookingDtos(fetchByState(state, handlers));
     }
 
     private Booking getBooking(Long bookingId) {
         return bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new NotFoundException("Booking not found"));
+    }
+
+    private List<Booking> fetchByState(BookingState state, Map<BookingState, Supplier<List<Booking>>> handlers) {
+        BookingState bookingState = state == null ? BookingState.ALL : state;
+        return handlers.get(bookingState).get();
+    }
+
+    private Collection<BookingDto> toBookingDtos(List<Booking> bookings) {
+        return bookings.stream()
+                .map(BookingMapper::toBookingDto)
+                .toList();
     }
 
     private void validateBookingCreateDto(BookingCreateDto bookingCreateDto) {

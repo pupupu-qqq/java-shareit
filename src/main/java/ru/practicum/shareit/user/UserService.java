@@ -65,6 +65,12 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
+    public void checkUserExists(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new NotFoundException("User not found");
+        }
+    }
+
     private void validateEmail(String email) {
         if (email == null || email.isBlank() || !email.contains("@")) {
             throw new ValidationException("Invalid email");
