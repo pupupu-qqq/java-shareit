@@ -5,6 +5,8 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import ru.practicum.shareit.booking.BookingState;
 
 import java.util.Map;
 
@@ -28,9 +30,25 @@ public class ErrorHandler {
         return Map.of("error", exception.getMessage());
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        if (BookingState.class.equals(exception.getRequiredType())) {
+            return Map.of("error", "Unknown state: " + exception.getValue());
+        }
+
+        return Map.of("error", exception.getMessage());
+    }
+
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleConflict(ConflictException exception) {
+        return Map.of("error", exception.getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> handleAccessDenied(AccessDeniedException exception) {
         return Map.of("error", exception.getMessage());
     }
 }

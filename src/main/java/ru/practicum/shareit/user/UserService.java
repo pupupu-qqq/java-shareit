@@ -1,6 +1,8 @@
 package ru.practicum.shareit.user;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
@@ -8,24 +10,24 @@ import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.mapper.UserMapper;
 
 import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserService {
-    private final Map<Long, User> users = new LinkedHashMap<>();
-    private long nextId = 1L;
+    private final UserRepository userRepository;
 
+    @Transactional
     public UserDto create(UserDto userDto) {
         validateEmail(userDto.getEmail());
         checkEmailIsFree(userDto.getEmail(), null);
 
-        User user = new User(nextId++, userDto.getName(), userDto.getEmail());
-        users.put(user.getId(), user);
+        User user = new User(null, userDto.getName(), userDto.getEmail());
 
-        return UserMapper.toUserDto(user);
+        return UserMapper.toUserDto(userRepository.save(user));
     }
 
+    @Transactional
     public UserDto update(Long userId, UserDto userDto) {
         User user = getUser(userId);
 
@@ -46,21 +48,27 @@ public class UserService {
     }
 
     public Collection<UserDto> getAll() {
-        return users.values().stream()
+        return userRepository.findAll().stream()
                 .map(UserMapper::toUserDto)
                 .toList();
     }
 
+    @Transactional
     public void delete(Long userId) {
-        users.remove(userId);
+        if (userRepository.existsById(userId)) {
+            userRepository.deleteById(userId);
+        }
     }
 
     public User getUser(Long userId) {
-        User user = users.get(userId);
-        if (user == null) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    public void checkUserExists(Long userId) {
+        if (!userRepository.existsById(userId)) {
             throw new NotFoundException("User not found");
         }
-        return user;
     }
 
     private void validateEmail(String email) {
@@ -70,8 +78,9 @@ public class UserService {
     }
 
     private void checkEmailIsFree(String email, Long currentUserId) {
-        boolean emailExists = users.values().stream()
-                .anyMatch(user -> user.getEmail().equals(email) && !user.getId().equals(currentUserId));
+        boolean emailExists = currentUserId == null
+                ? userRepository.existsByEmail(email)
+                : userRepository.existsByEmailAndIdNot(email, currentUserId);
 
         if (emailExists) {
             throw new ConflictException("Email already exists");
